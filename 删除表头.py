@@ -1,8 +1,8 @@
 import os
 import win32com.client
 import pythoncom
-from win32ui import CreateFileDialog
-import win32con
+import tkinter as tk
+from tkinter import filedialog
 
 # 定义Word常量
 wdStory = 6
@@ -13,29 +13,32 @@ wdExtend = 1
 
 
 def select_word_files():
-    """弹出文件选择对话框，允许选择多个Word文件"""
-    pythoncom.CoInitialize()  # 初始化COM组件
+    """弹出文件选择对话框，允许选择多个Word文件（无数量限制）"""
+    # 创建隐藏的Tkinter主窗口
+    root = tk.Tk()
+    root.withdraw()  # 隐藏主窗口，只显示文件选择对话框
 
-    dlg = CreateFileDialog(1, ".docx", None, win32con.OFN_ALLOWMULTISELECT,
-                           "Word Files (*.doc;*.docx)|*.doc;*.docx|All Files (*.*)|*.*|")
-    dlg.DoModal()
+    # 弹出文件选择对话框，支持多选
+    file_paths = filedialog.askopenfilenames(
+        title="选择Word文件",
+        filetypes=[("Word Files", "*.doc;*.docx"), ("All Files", "*.*")]
+    )
 
-    # 获取选择的文件路径
-    file_paths = []
-    if dlg.GetPathName():
-        # 处理多选情况
-        paths = dlg.GetPathNames()
-        for path in paths:
-            if os.path.isfile(path) and path.lower().endswith(('.doc', '.docx')):
-                file_paths.append(path)
+    # 处理选中的文件路径（过滤非Word文件）
+    valid_files = []
+    for path in file_paths:
+        if os.path.isfile(path) and path.lower().endswith(('.doc', '.docx')):
+            valid_files.append(path)
 
-    pythoncom.CoUninitialize()
-    return file_paths
+    return valid_files
 
 
 def process_word_file(file_path):
     """处理单个Word文件，删除【试题区】及其之前的所有内容，并清除开头空行"""
     try:
+        # 初始化COM组件
+        pythoncom.CoInitialize()
+
         # 初始化Word应用程序
         word = win32com.client.Dispatch("Word.Application")
         word.Visible = False  # 后台运行，不显示界面
@@ -92,6 +95,8 @@ def process_word_file(file_path):
         # 确保Word进程关闭
         if 'word' in locals():
             word.Quit()
+        # 释放COM组件
+        pythoncom.CoUninitialize()
 
 
 def main():
